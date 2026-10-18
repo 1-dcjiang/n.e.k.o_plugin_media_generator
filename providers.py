@@ -17,6 +17,7 @@ API Key 一律从环境变量读取（N.E.K.O 进程环境）：
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -172,10 +173,8 @@ async def _poll_dashscope_task(client: httpx.AsyncClient, task_id: str) -> str:
     raise RuntimeError("DashScope 任务超时（120s），请稍后重试。")
 
 
-def asyncio_sleep(seconds: float) -> "asyncio.Future":
-    """延迟实现：兼容无顶层 asyncio import 的场景。"""
-    import asyncio
-
+def asyncio_sleep(seconds: float) -> asyncio.Future:
+    """延迟实现（兼容局部导入场景的统一入口）。"""
     return asyncio.sleep(seconds)
 
 

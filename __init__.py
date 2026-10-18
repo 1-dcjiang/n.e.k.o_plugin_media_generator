@@ -18,6 +18,7 @@ from plugin.sdk.plugin import (
 
 from . import providers
 
+
 # 当前已配置的 provider 摘要（不泄露 key 本身）
 def _configured_summary() -> str:
     parts = providers.list_configured_providers()
