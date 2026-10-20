@@ -177,3 +177,85 @@ def test_unknown_provider_rejected():
         os.environ.pop("DASHSCOPE_API_KEY", None)
         os.environ.pop("DOUBAO_ARK_API_KEY", None)
         os.environ.pop("DOUBAO_ARK_ENDPOINT", None)
+
+
+# ══════════ v0.2.0：自动路由入口 ══════════
+
+
+def test_entries_registered():
+    """注册的 plugin_entry 入口（run / media_gen）必须可被宿主收集（入口点 > 0）。"""
+    from plugin.plugins.media_generator import MediaGeneratorPlugin
+
+    entries = {}
+    for name in dir(MediaGeneratorPlugin):
+        if name.startswith("_"):
+            continue
+        attr = getattr(MediaGeneratorPlugin, name, None)
+        meta = getattr(attr, "__neko_event_meta__", None)
+        if meta is not None and getattr(meta, "event_type", None) == "plugin_entry":
+            entries[meta.id] = meta
+    assert "run" in entries, f"缺少通用入口 run，现有：{sorted(entries)}"
+    assert "media_gen" in entries, f"缺少专用入口 media_gen，现有：{sorted(entries)}"
+    assert entries["run"].name == "媒体生成器"
+
+
+def test_entry_run_image_no_key():
+    """入口 run：action=generate_image、无 Key → NO_PROVIDER（可路由、可诊断）。"""
+    inst = _plugin()
+    result = _run(inst.entry_run(action="generate_image", prompt="一只猫", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_PROVIDER"
+
+
+def test_entry_run_video_no_key():
+    """入口 run：action=generate_video、无 Key → NO_VIDEO_PROVIDER。"""
+    inst = _plugin()
+    result = _run(inst.entry_run(action="generate_video", prompt="一只猫", duration=5, parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_VIDEO_PROVIDER"
+
+
+def test_entry_run_default_is_image():
+    """入口 run：无 action 时默认按文生图处理（视频特征参数缺省 → image）。"""
+    inst = _plugin()
+    result = _run(inst.entry_run(prompt="一只猫", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_PROVIDER"  # 走了图片分支
+
+
+def test_entry_run_duration_implies_video():
+    """入口 run：给了 duration 但无 action → 自动判断为视频。"""
+    inst = _plugin()
+    result = _run(inst.entry_run(prompt="一只猫", duration=10, parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_VIDEO_PROVIDER"
+
+
+def test_entry_run_no_prompt():
+    inst = _plugin()
+    result = _run(inst.entry_run(prompt="", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_PROMPT"
+
+
+def test_entry_run_unknown_action():
+    inst = _plugin()
+    result = _run(inst.entry_run(action="make_3d", prompt="一只猫", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "UNKNOWN_ACTION"
+
+
+def test_entry_media_gen_forwards():
+    """入口 media_gen：kind=image 转发到图片分支（无 Key → NO_PROVIDER）。"""
+    inst = _plugin()
+    result = _run(inst.entry_media_gen(prompt="一只猫", kind="image", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_PROVIDER"
+
+
+def test_entry_media_gen_no_kind_default_image():
+    """入口 media_gen：无 kind、无视频特征 → 默认图片。"""
+    inst = _plugin()
+    result = _run(inst.entry_media_gen(prompt="一只猫", parameters={}))
+    assert result["is_error"] is True
+    assert result["error"] == "NO_PROVIDER"

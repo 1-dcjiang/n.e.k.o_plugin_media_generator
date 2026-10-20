@@ -173,7 +173,7 @@ async def _poll_dashscope_task(client: httpx.AsyncClient, task_id: str) -> str:
     raise RuntimeError("DashScope 任务超时（120s），请稍后重试。")
 
 
-def asyncio_sleep(seconds: float) -> asyncio.Future:
+def asyncio_sleep(seconds: float) -> asyncio.coroutines.Coroutine[asyncio.Any, asyncio.Any, None]:
     """延迟实现（兼容局部导入场景的统一入口）。"""
     return asyncio.sleep(seconds)
 
